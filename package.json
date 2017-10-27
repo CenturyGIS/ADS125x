@@ -1,0 +1,55 @@
+{
+  "name": "ads125x",
+  "version": "0.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Century Engineering, Inc.",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-preset-latest": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "del": "^3.0.0",
+    "eslint": "^4.9.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-jsx-a11y": "^6.0.2",
+    "eslint-plugin-react": "^7.4.0",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^7.0.0",
+    "gulp-eslint": "^4.0.0",
+    "gulp-mocha": "^4.3.1"
+  },
+  "babel": {
+    "presets": [
+      "latest"
+    ]
+  },
+  "eslintConfig": {
+    "extends": "airbnb",
+    "plugins": [
+      "import"
+    ],
+    "rules": {
+      "import/extensions": "off",
+      "import/no-extraneous-dependencies": "off",
+      "import/no-unresolved": "off",
+      "import/prefer-default-export": "off",
+      "linebreak-style": "off",
+      "no-bitwise": "off",
+      "no-console": "off",
+      "no-restricted-properties": "off",
+      "no-trailing-spaces": "off",
+      "no-underscore-dangle": "off",
+      "no-unused-expressions": "off",
+      "padded-blocks": "off"
+    }
+  },
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "wiring-pi": "^2.2.1"
+  }
+}
