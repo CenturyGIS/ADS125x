@@ -2,7 +2,7 @@
   "name": "ads125x",
   "version": "0.0.0",
   "description": "",
-  "main": "lib/index.js",
+  "main": "lib/ads125x.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
