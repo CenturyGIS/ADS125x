@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "bluebird": "^3.5.1",
-    "wiring-pi": "^2.2.1"
+    "onoff": "^1.1.8",
+    "spi-device": "^1.0.1"
   }
 }

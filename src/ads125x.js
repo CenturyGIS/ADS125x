@@ -1,9 +1,10 @@
+import { Gpio } from 'onoff';
+import spi from 'spi-device';
 import Promise from 'bluebird';
-import wpi from 'wiring-pi';
-import { timeDelay } from './utils';
+// import { timeDelay } from './utils';
 import Definitions from './definitions';
 
-export default class ADS125x {
+export class ADS125x {
 
   /**
    * constructor - ADS125x
@@ -28,8 +29,6 @@ export default class ADS125x {
     const self = this;
 
     self.spiChannel = config.spiChannel;
-    self.drdyPin = config.drdyPin;
-    self.csPin = config.csPin;
     self.drdyTimeout = config.drdyTimeout || 2;
     self.drdyDelay = config.drdyDelay || 0.000001;
 
@@ -40,8 +39,6 @@ export default class ADS125x {
       throw new Error('Chip Select pin not specified. Use config.csPin.');
     }
 
-    wpi.wiringPiSetupPhys();
-
     const defaults = {
       clkinFrequency: 7680000,
       spiFrequency: 976563,
@@ -51,129 +48,145 @@ export default class ADS125x {
 
     const conf = Object.assign({}, defaults, config);
 
-    wpi.pinMode(self.drdyPin, wpi.INPUT);
+    self.drdy = new Gpio(config.drdyPin, 'in', 'both');
 
-    [self.csPin, conf.resetPin, conf.pdwnPin].forEach((p) => {
-      if (p) {
-        wpi.pinMode(p, wpi.OUTPUT);
-        wpi.digitalWrite(p, wpi.HIGH);
+    self._isDrdyPromise = new Promise((resolve, reject) => {
+      self._isDrdyResolve = resolve;
+      self._isDrdyReject = reject;
+    });
+
+    self.drdy.watch((err, value) => {
+
+      if (err) {
+        console.error(err);
+        self._isDrdyReject && self._isDrdyReject(err);
+        throw err;
+      }
+
+      if (!value) {
+        self._isDrdyResolve();
+      } else {
+        self._isDrdyPromise = new Promise((resolve, reject) => {
+          self._isDrdyResolve = resolve;
+          self._isDrdyReject = reject;
+        });
       }
     });
 
-    const fd = wpi.wiringPiSPISetupMode(self.spiChannel, conf.spiFrequency, conf.spiMode);
-    if (!fd) {
-      throw new Error('Could not access SPI device file');
-    }
+    process.on('SIGINT', () => self.drdy.unexport());
+
+    self.chipSelect = new Gpio(config.csPin, 'high');
+    self.resetGpio = new Gpio(config.resetPin, 'high');
+    self.pdwnGpio = new Gpio(config.pdwnPin, 'high');
+
+    // TODO: add way to set these options as well
+    const spiDeviceOpts = {
+      mode: spi.MODE1,
+      maxSpeedHz: conf.spiFrequency,
+      noChipSelect: true,
+    };
+
+    this.device = spi.openSync(0, conf.spiChannel, spiDeviceOpts);
+    this.device = Promise.promisifyAll(this.device);
 
     self._dataTimeoutUs = Math.ceil(1 + ((50 * 1000000) / conf.clkinFrequency));
     self._syncTimeoutUs = Math.ceil(1 + ((24 * 1000000) / conf.clkinFrequency));
     self._csTimeoutUs = Math.ceil(1 + ((8 * 1000000) / conf.clkinFrequency));
     self._t11TimeoutUs = Math.ceil(1 + ((4 * 1000000) / conf.clkinFrequency));
 
-    timeDelay(30)
-      .then(() => {
-        self.waitDRDY();
-        self.reset();
-      });
+    setTimeout(() => self.waitDRDY().then(() => self.reset()), 30);
   }
 
   calibrateSelf() {
-    this._chipSelect();
-    this._sendByte(Definitions.CMD_SELFCAL);
-    this.waitDRDY();
-    this._chipRelease();
-  }
-
-  _chipRelease() {
-    if (this.csPin) {
-      wpi.digitalWrite(this.csPin, wpi.HIGH);
-    }
-  }
-
-  _chipSelect() {
-    if (this.csPin) {
-      wpi.digitalWrite(this.csPin, wpi.LOW);
-    }
-  }
-
-  _readByte() {
-    const myBuf = Buffer.from([0xFF]);
-    wpi.wiringPiSPIDataRW(this.spiChannel, myBuf);
-    return myBuf[0];
+    const self = this;
+    return this._chipSelect()
+      .then(() => self._sendMessage([Definitions.CMD_SELFCAL]))
+      .then(() => self.waitDRDY())
+      .then(() => self._chipRelease());
   }
 
   /**
-   * readOneShot - description
+   * _chipRelease - Private chip release
    *
-   * @param  {type} diffChannel description
-   * @return {type}             description
+   * @return {Promise}
    */
-  readOneShot(diffChannel) {
-    this._chipSelect();
-    this._sendByte(Definitions.CMD_WREG | Definitions.REG_MUX);
-    this._sendByte(0x00);
-    this._sendByte(diffChannel);
+  _chipRelease() {
+    const self = this;
+    return new Promise(resolve => self.chipSelect.write(1, resolve));
+  }
 
-    this._sendByte(Definitions.CMD_SYNC);
-    wpi.delayMicroseconds(this._syncTimeoutUs);
-    this._sendByte(Definitions.CMD_WAKEUP);
+  /**
+   * _chipSelect - Private chip select
+   *
+   * @return {Promise}
+   */
+  _chipSelect() {
+    const self = this;
+    return new Promise(resolve => self.chipSelect.write(0, resolve));
+  }
 
-    this.waitDRDY();
-    this._sendByte(Definitions.CMD_RDATA);
-    wpi.delayMicroseconds(this._dataTimeoutUs);
+  read(diffChannel) {
+    const self = this;
+    return self._chipSelect()
+      .then(() => {
+        const bytes = [Definitions.CMD_WREG | Definitions.REG_MUX, 0x00, diffChannel];
+        return self._sendMessage(bytes);
+      })
+      .then(() => (
+        self._sendMessage([Definitions.CMD_SYNC], { delayMicroseconds: self._syncTimeoutUs })
+      ))
+      .then(() => self._sendMessage([Definitions.CMD_WAKEUP]))
+      .then(() => self.waitDRDY())
+      .then(() => (
+        self._sendMessage([Definitions.CMD_RDATA], { delayMicroseconds: self._dataTimeoutUs })
+      ))
+      .then(() => {
 
-    const byte3 = this._readByte();
-    const byte2 = this._readByte();
-    const byte1 = this._readByte();
+        const message = {
+          byteLength: 3,
+          receiveBuffer: Buffer.alloc(3),
+        };
 
-    this._chipRelease();
-    return (byte3 << 16) | (byte2 << 8) | byte1;
+        return this.device.transferAsync([message]);
+      })
+      .then(received => (
+        self._chipRelease()
+          .then(() => {
+            const rb = received[0].receiveBuffer;
+            const msb = rb[0];
+            const midb = rb[1];
+            const lsb = rb[2];
+            return (msb << 16) | (midb << 8) | lsb;
+          })
+      ));
   }
 
   reset() {
-    this._chipSelect();
-    this._sendByte(Definitions.CMD_RESET);
-    this.waitDRDY();
-    this._chipRelease();
+    const self = this;
+    return this._chipSelect()
+      .then(() => self._sendMessage([Definitions.CMD_RESET]))
+      .then(() => self.waitDRDY())
+      .then(() => self._chipRelease());
   }
 
-  _sendByte(byt) {
-    return wpi.wiringPiSPIDataRW(this.spiChannel, Buffer.from([byt & 0xFF]));
+  _sendMessage(bytes, options) {
+    let message = {
+      sendBuffer: Buffer.from(bytes),
+      byteLength: bytes.length,
+    };
+    message = Object.assign(message, options || {});
+    return this.device.transferAsync([message]);
   }
 
   wakeup() {
-    this._chipSelect();
-    this._sendByte(Definitions.CMD_WAKEUP);
-    this.waitDRDY();
-    this._chipRelease();
+    const self = this;
+    return this._chipSelect()
+      .then(() => self._sendMessage([Definitions.CMD_WAKEUP]))
+      .then(() => self.waitDRDY())
+      .then(() => self._chipRelease());
   }
 
   waitDRDY() {
-    const self = this;
-    return new Promise((resolve, reject) => {
-
-      if (self.drdyPin) {
-
-        const start = new Date();
-        let elapsed = new Date() - start;
-        let drdyLevel = wpi.digitalRead(self.drdyPin);
-
-        while (drdyLevel === wpi.HIGH && elapsed < self.drdyTimeout) {
-          elapsed = new Date() - start;
-          drdyLevel = wpi.digitalRead(self.drdyPin);
-
-          const delay = timeDelay(self.drdyDelay);
-          while (delay.isPending()) { return true; }
-        }
-
-        if (elapsed >= self.drdyTimeout) {
-          reject(new Error('Timeout while polling configured DRDY pin!'));
-        }
-      } else {
-        timeDelay(self.drdyTimeout);
-      }
-
-      return resolve();
-    });
+    return this._isDrdyPromise;
   }
 }

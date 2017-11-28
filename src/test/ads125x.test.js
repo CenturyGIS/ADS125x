@@ -1,17 +1,17 @@
 /* global describe it */
 
 import { should } from 'chai';
-import ADS125x from '../../';
+import { ADS125x } from '../../';
 
 should();
 
 describe('ADS125x', () => {
 
   const config = {
-    drdyPin: 11,
-    resetPin: 12,
-    pdwnPin: 13,
-    csPin: 15,
+    drdyPin: 17,
+    resetPin: 18,
+    pdwnPin: 27,
+    csPin: 22,
     spiChannel: 1,
   };
 
