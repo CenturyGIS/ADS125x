@@ -10,10 +10,10 @@ Analog to Digital conversion with ADS1255 and ADS1256. Tested with Raspberry Pi 
 import ADC125x from 'ads125x';
 
 const config = {
-  drdyPin: 11,
-  resetPin: 12,
-  pdwnPin: 13,
-  csPin: 15,
+  drdyPin: 17,
+  resetPin: 18,
+  pdwnPin: 27,
+  csPin: 22,
   spiChannel: 1,
 };
 
@@ -22,14 +22,15 @@ a.calibrateSelf();
 a.wakeup();
 ```
 
-To read values from a channel, call the `readOneShot` function with the specified channel configuration. The following examples uses the `0` channel for the positive reading and the "Analog Input Common" for negative. See [the datasheet](http://www.ti.com/lit/ds/symlink/ads1256.pdf) for more information.
+To read values from a channel, call the `read` function with the specified channel configuration. The following examples uses the `0` channel for the positive reading and the "Analog Input Common" for negative. See [the datasheet](http://www.ti.com/lit/ds/symlink/ads1256.pdf) for more information.
 
 ```js
 const POS_AIN0   = 0x00;
 const NEG_AINCOM = 0x08;
 
-let ch = POS_AIN1 | NEG_AINCOM;
-const v = a.readOneShot(ch);
+let ch = POS_AIN0 | NEG_AINCOM;
+const v = a.read(ch)
+  .then((output) => console.info(output));
 ```
 
 ## Test
