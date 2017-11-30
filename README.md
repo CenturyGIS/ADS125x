@@ -19,9 +19,7 @@ const config = {
 
 const a = new Ads1256(config);
 a.calibrateSelf()
-  .then(function () {
-    return a.wakeup();
-  });
+  .then(() => a.wakeup());
 ```
 
 To read values from a channel, call the `read` function with the specified channel configuration. The following examples uses the `0` channel for the positive reading and the "Analog Input Common" for negative. See [the datasheet](http://www.ti.com/lit/ds/symlink/ads1256.pdf) for more information.
@@ -32,7 +30,7 @@ const NEG_AINCOM = 0x08;
 
 let ch = POS_AIN0 | NEG_AINCOM;
 const v = a.read(ch)
-  .then((output) => console.info(output));
+  .then(output => console.info(output));
 ```
 
 ## Test
