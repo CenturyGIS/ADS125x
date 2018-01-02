@@ -17,7 +17,7 @@ const config = {
   spiChannel: 1,
 };
 
-const a = new Ads1256(config);
+const a = new ADS125x(config);
 a.calibrateSelf()
   .then(() => a.wakeup());
 ```
@@ -28,8 +28,7 @@ To read values from a channel, call the `read` function with the specified chann
 const POS_AIN0   = 0x00;
 const NEG_AINCOM = 0x08;
 
-let ch = POS_AIN0 | NEG_AINCOM;
-const v = a.read(ch)
+const v = a.read(POS_AIN0 | NEG_AINCOM)
   .then(output => console.info(output));
 ```
 
