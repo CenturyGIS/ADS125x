@@ -1,7 +1,6 @@
 import { Gpio } from 'onoff';
 import spi from 'spi-device';
 import Promise from 'bluebird';
-// import { timeDelay } from './utils';
 import Definitions from './definitions';
 
 export class ADS125x {
