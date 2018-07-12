@@ -7,7 +7,7 @@ Analog to Digital conversion with ADS1255 and ADS1256. Tested with Raspberry Pi 
 ## Usage
 
 ```js
-import ADC125x from 'ads125x';
+import { ADS125x } from 'ads125x';
 
 const config = {
   drdyPin: 17,
