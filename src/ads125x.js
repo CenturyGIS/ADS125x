@@ -47,30 +47,7 @@ export class ADS125x {
 
     const conf = Object.assign({}, defaults, config);
 
-    self.drdy = new Gpio(config.drdyPin, 'in', 'both');
-
-    self._isDrdyPromise = new Promise((resolve, reject) => {
-      self._isDrdyResolve = resolve;
-      self._isDrdyReject = reject;
-    });
-
-    self.drdy.watch((err, value) => {
-
-      if (err) {
-        console.error(err);
-        self._isDrdyReject && self._isDrdyReject(err);
-        throw err;
-      }
-
-      if (!value) {
-        self._isDrdyResolve();
-      } else {
-        self._isDrdyPromise = new Promise((resolve, reject) => {
-          self._isDrdyResolve = resolve;
-          self._isDrdyReject = reject;
-        });
-      }
-    });
+    self.drdy = new Gpio(config.drdyPin, 'in', 'falling');
 
     process.on('SIGINT', () => self.drdy.unexport());
 
@@ -186,6 +163,23 @@ export class ADS125x {
   }
 
   waitDRDY() {
-    return this._isDrdyPromise;
+    let drdyCallback;
+    return new Promise((resolve) => {
+      drdyCallback = (err, value) => {
+        if (err) {
+          console.error(err);
+        }
+
+        // NOTE: the value should always be 0 because we have set the GPIO edge to "falling".
+        // However, we do still seem mto get "rising" edge values (1). I assume this may be because
+        // our onOff dependency is a little out of date.
+        // Need to address this.
+        if (value === 0) {
+          resolve();
+        }
+      };
+      this.drdy.watch(drdyCallback);
+    })
+      .then(() => this.drdy.unwatch(drdyCallback));
   }
 }
