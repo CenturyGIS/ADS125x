@@ -1,6 +1,6 @@
 {
   "name": "ads125x",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "lib/ads125x.js",
   "scripts": {
