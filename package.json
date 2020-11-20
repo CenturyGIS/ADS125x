@@ -1,6 +1,6 @@
 {
   "name": "ads125x",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "",
   "main": "lib/ads125x.js",
   "scripts": {
@@ -51,7 +51,7 @@
   "dependencies": {
     "@babel/core": "^7.10.5",
     "bluebird": "^3.7.2",
-    "onoff": "^6.0.0",
+    "onoff": "^6.0.1",
     "spi-device": "^3.1.0"
   }
 }
